@@ -2,8 +2,6 @@
 
 require("dotenv").config();
 const express = require("express");
-const bcrypt = require("bcryptjs");
-const jwt = require("jsonwebtoken");
 const { Pool } = require("pg");
 const { PrismaPg } = require("@prisma/adapter-pg");
 const { PrismaClient } = require("@prisma/client");
@@ -14,8 +12,6 @@ const prisma = new PrismaClient({ adapter });
 
 const fs = require("fs");
 const path = require("path");
-
-const authenticateToken = require("./middleware/auth");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -238,52 +234,6 @@ app.get("/db-users", async (req, res) => {
   } catch (error) {
     res.status(500).json({ message: "Error reading db" });
   }
-});
-
-app.get("/protected", authenticateToken, (req, res) => {
-  res.json({ message: "This is a protected route", user: req.user });
-});
-
-app.post("/register", async (req, res) => {
-  const { name, email, password } = req.body;
-  const hashedPassword = await bcrypt.hash(password, 10);
-
-  const newUser = await prisma.user.create({
-    data: {
-      name,
-      email,
-      password: hashedPassword,
-      role: "USER",
-    },
-  });
-
-  res.status(201).json({ message: "User created successfully", user: newUser });
-});
-
-app.post("/login", async (req, res) => {
-  const { email, password } = req.body;
-  const user = await prisma.user.findUnique({
-    where: {
-      email,
-    },
-  });
-
-  if (!user) {
-    return res.status(401).json({ message: "Invalid email or password" });
-  }
-
-  const isPasswordValid = await bcrypt.compare(password, user.password);
-  if (!isPasswordValid) {
-    return res.status(401).json({ message: "Invalid email or password" });
-  }
-  const token = jwt.sign(
-    { id: user.id, email: user.email },
-    process.env.JWT_SECRET,
-    {
-      expiresIn: "1h",
-    }
-  );
-  res.json({ message: "User logged in successfully", token });
 });
 
 // ======================
